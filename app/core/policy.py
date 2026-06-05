@@ -44,11 +44,21 @@ def analyze_request(payload: AnalyzeRequest) -> AnalyzeResponse:
     score = min(100, sum(item.weight for item in detections if item.triggered))
     decision = _decision(score)
 
-    sanitized_prompt = payload.prompt
-    sanitized_context_docs: List[ContextDoc] = payload.context_docs
-    if decision == "transform":
+    if decision == "block":
+        # P0-1: block branch must be fully opaque — never leak raw content downstream
+        sanitized_prompt = "[BLOCKED]"
+        sanitized_context_docs: List[ContextDoc] = []
+    elif decision == "transform":
         sanitized_prompt = redact_pii(payload.prompt)
         sanitized_context_docs = [ContextDoc(id=doc.id, text=redact_pii(doc.text)) for doc in payload.context_docs]
+    else:  # allow
+        # P0-2: still redact PII even when score falls below transform threshold
+        if pii_triggered:
+            sanitized_prompt = redact_pii(payload.prompt)
+            sanitized_context_docs = [ContextDoc(id=doc.id, text=redact_pii(doc.text)) for doc in payload.context_docs]
+        else:
+            sanitized_prompt = payload.prompt
+            sanitized_context_docs = list(payload.context_docs)
 
     reasons = [
         Reason(tag=item.tag, evidence=item.evidence)
