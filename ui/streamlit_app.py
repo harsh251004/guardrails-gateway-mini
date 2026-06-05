@@ -139,6 +139,12 @@ def _render_dashboard() -> None:
     st_autorefresh(interval=1000, key="dashboard-refresh")
     _simulate_live_row()
 
+    st.info(
+        "**Simulated Telemetry — Demo Data.** "
+        "All metrics and log entries on this tab are randomly generated for demonstration purposes only. "
+        "Use the **Manual API Analyze** tab to analyze real prompts via the live API.",
+        icon="ℹ️",
+    )
     st.markdown("### Guardrails Gateway")
     nav_cols = st.columns([3, 1, 2])
     nav_cols[0].markdown("**Environment**")
@@ -305,7 +311,7 @@ with st.sidebar:
             st.error(f"API not reachable: {exc}")
     st.caption("Use `http://localhost:8000` for local run, `http://api:8000` in Docker UI container.")
 
-tab1, tab2 = st.tabs(["What's Been On Dashboard", "Manual API Analyze"])
+tab1, tab2 = st.tabs(["Simulated Telemetry — Demo Data", "Manual API Analyze"])
 with tab1:
     _render_dashboard()
 with tab2:

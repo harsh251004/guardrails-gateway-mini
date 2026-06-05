@@ -6,19 +6,25 @@ from pathlib import Path
 from urllib import error, request
 
 
+# Exit codes: 1 = bad input, 2 = network error, 3 = non-200 from API
+EXIT_BAD_INPUT = 1
+EXIT_NETWORK_ERROR = 2
+EXIT_API_ERROR = 3
+
+
 def run_analyze(input_path: str, output_path: str, api_base_url: str) -> int:
     in_file = Path(input_path)
     out_file = Path(output_path)
 
     if not in_file.exists():
         print(f"Input file not found: {input_path}", file=sys.stderr)
-        return 1
+        return EXIT_BAD_INPUT
 
     try:
         payload = json.loads(in_file.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         print(f"Invalid input JSON: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_BAD_INPUT
 
     req = request.Request(
         url=f"{api_base_url.rstrip('/')}/analyze",
@@ -32,10 +38,10 @@ def run_analyze(input_path: str, output_path: str, api_base_url: str) -> int:
             body = response.read().decode("utf-8")
     except error.HTTPError as exc:
         print(f"API returned HTTP {exc.code}: {exc.read().decode('utf-8')}", file=sys.stderr)
-        return 1
+        return EXIT_API_ERROR
     except error.URLError as exc:
         print(f"Could not reach API at {api_base_url}: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_NETWORK_ERROR
 
     out_file.write_text(body, encoding="utf-8")
     print(f"Wrote analysis output to {output_path}")

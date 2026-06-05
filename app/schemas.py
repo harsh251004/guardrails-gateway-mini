@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class ContextDoc(BaseModel):
     id: str = Field(min_length=1)
-    text: str
+    text: str = Field(max_length=20_000)
 
 
 class RequestMetadata(BaseModel):
@@ -15,7 +15,7 @@ class RequestMetadata(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(max_length=20_000)
     context_docs: List[ContextDoc] = Field(default_factory=list, max_length=3)
     metadata: RequestMetadata
 

@@ -132,3 +132,21 @@ Example output (shape):
 ## AI Tooling Disclosure
 - AI tools were used for scaffolding and boilerplate acceleration.
 - Core logic, detector behavior, API contracts, tests, and documentation were implemented and validated manually.
+
+## CHANGELOG
+
+### P0-1 — Block decision returns sentinels (not raw content)
+`app/core/policy.py`: `decision == "block"` now returns `sanitized_prompt = "[BLOCKED]"` and `sanitized_context_docs = []`, preventing raw adversarial content from leaking to downstream consumers.
+Added test: `test_block_decision_returns_sentinels_not_raw_content`
+
+### P0-2 — PII always redacted regardless of decision band
+`app/core/policy.py`: The `allow` branch now runs `redact_pii()` whenever `pii_triggered` is true, so emails/phones are masked even when the total risk score falls below the transform threshold (e.g. score 35 < 40).
+Added test: `test_pii_below_threshold_still_redacts_output`
+
+### P0-3 — Phone and email regex ReDoS surface closed
+`app/core/detectors.py`: Unrolled the phone regex quantifier to a literal `\d{3}[.\s-]\d{3}[.\s-]\d{4}` sequence. Replaced the email regex local-part with a bounded `{0,63}` character class eliminating backtracking on digit/dash-saturated input. Both now complete in under 1 ms on a 5 KB adversarial string.
+Added test: `test_phone_regex_is_redos_resistant`
+
+### P0-4 — High-confidence prompt injection phrases force block
+`app/core/detectors.py`: Split injection phrases into `HIGH_CONFIDENCE_PI_PHRASES` (weight=80, causes single-shot block) and lower-confidence phrases (weight=60). Phrases such as "ignore previous instructions" now reach the block threshold without needing other co-triggered detectors.
+Added test: `test_high_confidence_pi_blocks_single_shot`
