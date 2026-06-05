@@ -3,13 +3,25 @@ from dataclasses import dataclass
 from typing import Iterable, List, Tuple
 
 
-EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?(?:\d{3}[-.\s]?){2}\d{4}\b")
+# Possessive-safe email pattern: local-part uses a single character class
+# with no alternation, eliminating backtracking on non-email digit/dash input.
+EMAIL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._%+\-]{0,63}@[A-Za-z0-9\-]{1,63}(?:\.[A-Za-z0-9\-]{1,63})*\.[A-Za-z]{2,}")
+# Unrolled quantifier + possessive-style anchoring to prevent ReDoS on
+# dash-saturated inputs. Using atomic-safe literal sequence with no nested
+# quantifiers: \d{3}-\d{3}-\d{4} and variants.
+PHONE_RE = re.compile(
+    r"\b(?:\+?\d{1,3}[.\s-])?\d{3}[.\s-]\d{3}[.\s-]\d{4}\b"
+)
 
-PROMPT_INJECTION_PHRASES = (
+# High-confidence phrases force block regardless of total score (weight=80)
+HIGH_CONFIDENCE_PI_PHRASES = (
     "ignore previous instructions",
     "reveal system prompt",
     "act as dan",
+)
+
+# Lower-confidence phrases still trigger but at weight=60
+PROMPT_INJECTION_PHRASES = (
     "bypass safety",
     "ignore all prior constraints",
 )
@@ -32,6 +44,14 @@ class DetectionResult:
 
 def detect_prompt_injection(prompt: str) -> DetectionResult:
     lowered = prompt.lower()
+    for phrase in HIGH_CONFIDENCE_PI_PHRASES:
+        if phrase in lowered:
+            return DetectionResult(
+                tag="prompt_injection",
+                triggered=True,
+                evidence=f"high-confidence: {phrase}",
+                weight=80,
+            )
     for phrase in PROMPT_INJECTION_PHRASES:
         if phrase in lowered:
             return DetectionResult(
